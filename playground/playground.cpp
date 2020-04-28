@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <iostream>
 
 #include "GL/glew.h"
 #include "GLFW/glfw3.h"
@@ -55,30 +56,71 @@ int main() {
 
     static const GLfloat g_vertex_buffer_data[] = {
         -1.0f, -1.0f,  1.0f, // A
+         1.0f, -1.0f,  1.0f, // D
+        -1.0f,  1.0f,  1.0f, // E
+         1.0f,  1.0f,  1.0f, // H
+
         -1.0f, -1.0f, -1.0f, // B
          1.0f, -1.0f, -1.0f, // C
-         1.0f, -1.0f,  1.0f, // D
-
-        -1.0f,  1.0f,  1.0f, // E
         -1.0f,  1.0f, -1.0f, // F
          1.0f,  1.0f, -1.0f, // G
-         1.0f,  1.0f,  1.0f  // H
+
+        -1.0f, -1.0f, -1.0f, // B
+        -1.0f, -1.0f,  1.0f, // A
+        -1.0f,  1.0f, -1.0f, // F
+        -1.0f,  1.0f,  1.0f, // E
+
+         1.0f, -1.0f,  1.0f, // D
+         1.0f, -1.0f, -1.0f, // C
+         1.0f,  1.0f,  1.0f, // H
+         1.0f,  1.0f, -1.0f, // G
+
+        -1.0f, -1.0f,  1.0f, // A
+         1.0f, -1.0f,  1.0f, // D
+        -1.0f, -1.0f, -1.0f, // B
+         1.0f, -1.0f, -1.0f, // C
+
+        -1.0f,  1.0f,  1.0f, // E
+         1.0f,  1.0f,  1.0f, // H
+        -1.0f,  1.0f, -1.0f, // F
+         1.0f,  1.0f, -1.0f, // G
     };
+
     GLuint vertexBuffer;
     glGenBuffers(1, &vertexBuffer);
     glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
     glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
 
     static const GLfloat g_uv_buffer_data[] = {
-        0, 0, // A
-        0, 0, // B
-        1, 0, // C
-        1, 0, // D
+        0.0f, 0.0f, // A
+        1.0f, 0.0f, // D
+        0.0f, 1.0f, // E
+        1.0f, 1.0f, // H
 
-        0, 1, // E
-        0, 1, // F
-        1, 1, // G
-        1, 1  // H
+        0.0f, 0.0f, // B
+        1.0f, 0.0f, // C
+        0.0f, 1.0f, // F
+        1.0f, 1.0f, // G
+
+        0.0f, 0.0f, // B
+        1.0f, 0.0f, // A
+        0.0f, 1.0f, // F
+        1.0f, 1.0f, // E
+
+        0.0f, 0.0f, // D
+        1.0f, 0.0f, // C
+        0.0f, 1.0f, // H
+        1.0f, 1.0f, // G
+
+        0.0f, 0.0f, // A
+        1.0f, 0.0f, // D
+        0.0f, 1.0f, // B
+        1.0f, 1.0f, // C
+
+        0.0f, 0.0f, // E
+        1.0f, 0.0f, // H
+        0.0f, 1.0f, // F
+        1.0f, 1.0f, // G
     };
     GLuint uvBuffer;
     glGenBuffers(1, &uvBuffer);
@@ -87,7 +129,23 @@ int main() {
 
 
     static const GLuint g_index_buffer_data[] = {
-        7, 6, 3, 2, 1, 6, 5, 7, 4, 3, 0, 1, 4, 5
+        0, 2, 3,
+        0, 3, 1,
+
+        4, 6, 7,
+        4, 7, 5,
+
+        8, 10, 11,
+        8, 11, 9,
+
+        12, 14, 15,
+        12, 15, 13,
+
+        16, 18, 19,
+        16, 19, 17,
+
+        20, 22, 23,
+        20, 23, 21,
     };
     GLuint indexBuffer;
     glGenBuffers(1, &indexBuffer);
@@ -132,28 +190,16 @@ int main() {
         glUseProgram(shaderProgramID);
         glUniformMatrix4fv(matrixID, 1, GL_FALSE, &mvp[0][0]);
 
-        glEnableVertexAttribArray(1);
-        glBindBuffer(GL_ARRAY_BUFFER, uvBuffer);
-        glVertexAttribPointer(
-                1,
-                3,
-                GL_FLOAT,
-                GL_FALSE,
-                0,
-                (void*) nullptr
-        );
-
-        glEnableVertexAttribArray(0);
-        glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
-
-
         // Bind our texture in Texture Unit 0
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, Texture);
         // Set our "myTextureSampler" sampler to use Texture Unit 0
         glUniform1i(TextureID, 0);
 
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
+
+        // 1st attribute buffer : vertices
+        glEnableVertexAttribArray(0);
+        glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
         glVertexAttribPointer(
                 0,
                 3,
@@ -163,8 +209,29 @@ int main() {
                 (void*) nullptr
         );
 
-        glDrawElements(GL_TRIANGLE_STRIP, 14, GL_UNSIGNED_INT, (void*) 0);
+        // 2nd attribute buffer : UVs
+        glEnableVertexAttribArray(1);
+        glBindBuffer(GL_ARRAY_BUFFER, uvBuffer);
+        glVertexAttribPointer(
+                1,
+                2,
+                GL_FLOAT,
+                GL_FALSE,
+                0,
+                (void*) nullptr
+        );
+
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
+
+        glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, (void*) 0);
+
         glDisableVertexAttribArray(0);
+        glDisableVertexAttribArray(1);
+
+        GLenum error = glGetError();
+        if(error != GL_NO_ERROR) {
+            std::cerr << error << std::endl;
+        }
 
         glfwSwapBuffers(window);
 
@@ -176,6 +243,17 @@ int main() {
         glfwGetKey(window, GLFW_KEY_ESCAPE) != GLFW_PRESS
         && glfwWindowShouldClose(window) == 0
     );
+
+    // Cleanup VBO and shader
+    glDeleteBuffers(1, &vertexBuffer);
+    glDeleteBuffers(1, &uvBuffer);
+    glDeleteBuffers(1, &indexBuffer);
+    glDeleteProgram(shaderProgramID);
+    glDeleteTextures(1, &Texture);
+    glDeleteVertexArrays(1, &VertexArrayID);
+
+    // Close OpenGL window and terminate GLFW
+    glfwTerminate();
 
     return 0;
 }

@@ -29,8 +29,8 @@ float verticalAngle = 0.0f;
 // Initial Field of View
 float initialFoV = 45.0f;
 
-float speed = 3.0f; // 3 units / second
-float turnSpeed = 0.01f;
+float speed = 5.0f; // 3 units / second
+float turnSpeed = 0.02f;
 
 
 
