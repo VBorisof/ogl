@@ -21,11 +21,11 @@ glm::mat4 getProjectionMatrix(){
 
 
 // Initial position : on +Z
-glm::vec3 position = glm::vec3( 0, 0, 5 ); 
+glm::vec3 position = glm::vec3( 0, 5, 5 );
 // Initial horizontal angle : toward -Z
 float horizontalAngle = glm::pi<float>();
 // Initial vertical angle : none
-float verticalAngle = 0.0f;
+float verticalAngle = - glm::sqrt(2) / 2.0;//glm::pi<float>();
 // Initial Field of View
 float initialFoV = 45.0f;
 
@@ -34,22 +34,23 @@ float turnSpeed = 0.02f;
 
 
 
-void computeMatricesFromInputs(){
-
-	// glfwGetTime is called only once, the first time this function is called
-	static double lastTime = glfwGetTime();
-
-	// Compute time difference between current and last frame
-	double currentTime = glfwGetTime();
-	float deltaTime = float(currentTime - lastTime);
-
+void computeMatricesFromInputs(float deltaTime) {
 	// Get mouse position
 	double xpos, ypos;
 	glfwGetCursorPos(window, &xpos, &ypos);
 
 	int width, height;
 	glfwGetWindowSize(window, &width, &height);
-
+    
+    if (glfwGetKey( window, GLFW_KEY_LEFT_SHIFT ) == GLFW_PRESS){
+        speed = 15.0f;
+        turnSpeed = 0.04f;
+    }
+    else {
+        speed = 5.0f;
+        turnSpeed = 0.02f;
+    }
+	
 
 	// Cam rotations:
     if (glfwGetKey( window, GLFW_KEY_UP ) == GLFW_PRESS){
@@ -109,7 +110,4 @@ void computeMatricesFromInputs(){
 	    position+direction, // and looks here : at the same position, plus "direction"
 	    up                  // Head is up (set to 0,-1,0 to look upside-down)
 	);
-
-	// For the next frame, the "last time" will be "now"
-	lastTime = currentTime;
 }
