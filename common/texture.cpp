@@ -20,7 +20,7 @@ GLuint loadBMP_custom(const char * imagepath){
 	unsigned char * data;
 
 	// Open the file
-	FILE * file = fopen(imagepath,"rb");
+	FILE* file = fopen(imagepath, "rb");
 	if (!file){
 		printf("%s could not be opened. Are you in the right directory ? Don't forget to read the FAQ !\n", imagepath);
 		getchar();
@@ -42,8 +42,8 @@ GLuint loadBMP_custom(const char * imagepath){
 		return 0;
 	}
 	// Make sure this is a 24bpp file
-	if ( *(int*)&(header[0x1E])!=0  )         {printf("Not a correct BMP file\n");    fclose(file); return 0;}
-	if ( *(int*)&(header[0x1C])!=24 )         {printf("Not a correct BMP file\n");    fclose(file); return 0;}
+	if ( *(int*)&(header[0x1E])!=0  ) {printf("Not a correct BMP file\n"); fclose(file); return 0;}
+	if ( *(int*)&(header[0x1C])!=24 ) {printf("Not a correct BMP file\n"); fclose(file); return 0;}
 
 	// Read the information about the image
 	dataPos    = *(int*)&(header[0x0A]);
@@ -72,20 +72,20 @@ GLuint loadBMP_custom(const char * imagepath){
 	glBindTexture(GL_TEXTURE_2D, textureID);
 
 	// Give the image to OpenGL
-	glTexImage2D(GL_TEXTURE_2D, 0,GL_RGB, width, height, 0, GL_BGR, GL_UNSIGNED_BYTE, data);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_BGR, GL_UNSIGNED_BYTE, data);
 
 	// OpenGL has now copied the data. Free our own version
 	delete [] data;
 
 	// Poor filtering, or ...
 	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); 
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
 	// ... nice trilinear filtering ...
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	// ... which requires mipmaps. Generate them automatically.
 	glGenerateMipmap(GL_TEXTURE_2D);
 
