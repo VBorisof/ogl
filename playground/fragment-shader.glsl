@@ -6,7 +6,7 @@ in vec3 LightDirection_cameraSpace;
 in vec3 Position_worldSpace;
 in vec3 EyeDirection_cameraSpace;
 
-out vec3 color;
+out vec4 color;
 
 uniform sampler2D myTextureSampler;
 uniform vec3 LightPosition_worldSpace;
@@ -34,7 +34,8 @@ void main() {
 
     vec3 specularColor = materialSpecularColor * LightColor * pow(cosAlpha, 2) / (distanceToLight * distanceToLight);
 
-    color =
-        materialAmbientColor + diffuseColor + specularColor;
+    color.rgb =
+        (materialAmbientColor + diffuseColor + specularColor);
     ;
+    color.a = 1;
 }
