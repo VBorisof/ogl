@@ -23,145 +23,12 @@
 #include "Mesh.hpp"
 #include "Texture.hpp"
 #include "Model.hpp"
+#include "Shader.hpp"
+#include "FontTextureManager.hpp"
 
 using namespace glm;
 
 GLFWwindow* window;
-
-struct Character {
-    unsigned int TextureId;
-    glm::ivec2   Size;
-    glm::ivec2   Bearing;
-    FT_Pos       Advance;
-};
-
-std::map<char, Character> loadChars(FT_Face face) {
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    
-    std::map<char, Character> characters;
-    for (unsigned char c = 0; c < 128; ++c){
-        if (FT_Load_Char(face, c, FT_LOAD_RENDER)){
-            fprintf(stderr, "Failed to load Glyph.");
-            continue;
-        }
-        
-        unsigned int texture;
-        glGenTextures(1, &texture);
-        glBindTexture(GL_TEXTURE_2D, texture);
-        glTexImage2D(
-            GL_TEXTURE_2D,
-            0,
-            GL_RED,
-            face->glyph->bitmap.width,
-            face->glyph->bitmap.rows,
-            0,
-            GL_RED,
-            GL_UNSIGNED_BYTE,
-            face->glyph->bitmap.buffer
-        );
-        
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        
-        Character character = {
-            texture,
-            glm::ivec2(face->glyph->bitmap.width, face->glyph->bitmap.rows),
-            glm::ivec2(face->glyph->bitmap_left, face->glyph->bitmap_top),
-            face->glyph->advance.x
-        };
-        
-        characters.insert(std::pair<char, Character>(c, character));
-    }
-    
-    return characters;
-}
-
-std::map<char, Character> loadFonts() {
-    FT_Library ft;
-    if (FT_Init_FreeType(&ft)) {
-        fprintf(stderr, "Could not init FreeType library.");
-    }
-    
-    FT_Face face;
-    if (FT_New_Face(ft, "/home/oma/Code/CPP-Workspace/ogl/playground/res/fonts/arial.ttf", 0, &face)) {
-        fprintf(stderr, "Could not load the font.");
-    }
-    
-    FT_Set_Pixel_Sizes(face, 0, 48);
-    
-    std::map<char, Character> characters = loadChars(face);
-    
-    FT_Done_Face(face);
-    FT_Done_FreeType(ft);
-    
-    return characters;
-}
-
-void renderText(
-    GLuint textVao,
-    GLuint textVbo,
-    GLuint shaderId,
-    std::map<char, Character> characters,
-    std::string text,
-    glm::vec2 position,
-    float scale,
-    glm::vec3 color
-)
-{
-    glUseProgram(shaderId);
-    
-    glActiveTexture(GL_TEXTURE0);
-    
-    glBindVertexArray(textVao);
-    glBindBuffer(GL_ARRAY_BUFFER, textVbo);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(
-        0,
-        4,
-        GL_FLOAT,
-        GL_FALSE,
-        4 * sizeof(float),
-        (void*) nullptr
-    );
-    
-    glUniform1i(glGetUniformLocation(shaderId, "text"), 0);
-    glUniform3f(glGetUniformLocation(shaderId, "textColor"), color.x, color.y, color.z);
-    
-    std::string::const_iterator it;
-    float x = position.x;
-    float y = position.y;
-    for (it = text.begin(); it != text.end(); ++it){
-        Character c = characters[*it];
-        
-        float xpos = x + c.Bearing.x * scale;
-        float ypos = y - (c.Size.y - c.Bearing.y) * scale;
-        
-        float w = c.Size.x * scale;
-        float h = c.Size.y * scale;
-        
-        float vertices[6][4] = {
-            { xpos,     ypos + h, 0.0f, 0.0f },
-            { xpos,     ypos,     0.0f, 1.0f },
-            { xpos + w, ypos,     1.0f, 1.0f },
-            
-            { xpos    , ypos + h, 0.0f, 0.0f },
-            { xpos + w, ypos    , 1.0f, 1.0f },
-            { xpos + w, ypos + h, 1.0f, 0.0f }
-        };
-        
-        glBindTexture(GL_TEXTURE_2D, c.TextureId);
-    
-        glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
-        
-        glDrawArrays(GL_TRIANGLES, 0, 6);
-        // now advance cursors for next glyph (note that advance is number of 1/64 pixels)
-        x += (c.Advance >> 6) * scale; // bitshift by 6 to get value in pixels (2^6 = 64)
-    }
-    glBindVertexArray(0);
-    glBindTexture(GL_TEXTURE_2D, 0);
-}
 
 void APIENTRY glDebugOutput(
     GLenum source,
@@ -173,43 +40,52 @@ void APIENTRY glDebugOutput(
     const void *userParam
 )
 {
-    // ignore non-significant error/warning codes
-    if(id == 131169 || id == 131185 || id == 131218 || id == 131204) return;
-    
-    std::cout << "---------------" << std::endl;
-    std::cout << "Debug message (" << id << "): " <<  message << std::endl;
-    
-    switch (source)
+    // Ignore non-significant error/warning codes
+    if (
+        id == 131169
+        || id == 131185
+        || id == 131218
+        || id == 131204
+    )
     {
-        case GL_DEBUG_SOURCE_API:             std::cout << "Source: API"; break;
-        case GL_DEBUG_SOURCE_WINDOW_SYSTEM:   std::cout << "Source: Window System"; break;
-        case GL_DEBUG_SOURCE_SHADER_COMPILER: std::cout << "Source: Shader Compiler"; break;
-        case GL_DEBUG_SOURCE_THIRD_PARTY:     std::cout << "Source: Third Party"; break;
-        case GL_DEBUG_SOURCE_APPLICATION:     std::cout << "Source: Application"; break;
-        case GL_DEBUG_SOURCE_OTHER:           std::cout << "Source: Other"; break;
-    } std::cout << std::endl;
+        return;
+    }
     
-    switch (type)
-    {
-        case GL_DEBUG_TYPE_ERROR:               std::cout << "Type: Error"; break;
-        case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR: std::cout << "Type: Deprecated Behaviour"; break;
-        case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:  std::cout << "Type: Undefined Behaviour"; break;
-        case GL_DEBUG_TYPE_PORTABILITY:         std::cout << "Type: Portability"; break;
-        case GL_DEBUG_TYPE_PERFORMANCE:         std::cout << "Type: Performance"; break;
-        case GL_DEBUG_TYPE_MARKER:              std::cout << "Type: Marker"; break;
-        case GL_DEBUG_TYPE_PUSH_GROUP:          std::cout << "Type: Push Group"; break;
-        case GL_DEBUG_TYPE_POP_GROUP:           std::cout << "Type: Pop Group"; break;
-        case GL_DEBUG_TYPE_OTHER:               std::cout << "Type: Other"; break;
-    } std::cout << std::endl;
+    std::string color = "\033[0;37m";
     
     switch (severity)
     {
-        case GL_DEBUG_SEVERITY_HIGH:         std::cout << "Severity: high"; break;
-        case GL_DEBUG_SEVERITY_MEDIUM:       std::cout << "Severity: medium"; break;
-        case GL_DEBUG_SEVERITY_LOW:          std::cout << "Severity: low"; break;
-        case GL_DEBUG_SEVERITY_NOTIFICATION: std::cout << "Severity: notification"; break;
-    } std::cout << std::endl;
-    std::cout << std::endl;
+        case GL_DEBUG_SEVERITY_HIGH:         color = "\033[0;31m"; break;
+        case GL_DEBUG_SEVERITY_MEDIUM:       color = "\033[1;33m"; break;
+        case GL_DEBUG_SEVERITY_LOW:          color = "\033[0;33m"; break;
+        case GL_DEBUG_SEVERITY_NOTIFICATION: color = "\033[0;37m"; break;
+    }
+    
+    std::cout << color;
+    
+    switch (type)
+    {
+        case GL_DEBUG_TYPE_ERROR:               std::cout << "[!]"; break; // Type: Error
+        case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR: std::cout << "[x]"; break; // Type: Deprecated Behaviour
+        case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:  std::cout << "[?]"; break; // Type: Undefined Behaviour
+        case GL_DEBUG_TYPE_PORTABILITY:         std::cout << "[>]"; break; // Type: Portability
+        case GL_DEBUG_TYPE_PERFORMANCE:         std::cout << "[=]"; break; // Type: Performance
+        case GL_DEBUG_TYPE_MARKER:              std::cout << "[M]"; break; // Type: Marker
+        case GL_DEBUG_TYPE_PUSH_GROUP:          std::cout << "[V]"; break; // Type: Push Group
+        case GL_DEBUG_TYPE_POP_GROUP:           std::cout << "[^]"; break; // Type: Pop Group
+        case GL_DEBUG_TYPE_OTHER:               std::cout << "[~]"; break; // Type: Other
+    }
+    switch (source)
+    {
+        case GL_DEBUG_SOURCE_API:             std::cout << "[API       ]"; break;
+        case GL_DEBUG_SOURCE_WINDOW_SYSTEM:   std::cout << "[W.System  ]"; break;
+        case GL_DEBUG_SOURCE_SHADER_COMPILER: std::cout << "[S.Compiler]"; break;
+        case GL_DEBUG_SOURCE_THIRD_PARTY:     std::cout << "[3-Party   ]"; break;
+        case GL_DEBUG_SOURCE_APPLICATION:     std::cout << "[App       ]"; break;
+        case GL_DEBUG_SOURCE_OTHER:           std::cout << "[Other     ]"; break;
+    }
+    
+    std::cout << " " << message << "\033[0m" << std::endl;
 }
 
 int init(int width, int height) {
@@ -256,15 +132,13 @@ int init(int width, int height) {
 }
 
 int main() {
-    int width = 1024;
-    int height = 768;
+    int screen_width = 1920;
+    int screen_height = 1080;
     
-    int initResult = init(width, height);
+    int initResult = init(screen_width, screen_height);
     if (initResult != 0) {
         return initResult;
     }
-    
-    std::map<char, Character> characters = loadFonts();
 
     /* ================================================ */
 
@@ -321,46 +195,33 @@ int main() {
         models.push_back(cubeModel);
     }
     
-
-    GLuint mainShaderProgramID = LoadShaders(
+    
+    Shader* sceneShader = new Shader(
         "/home/oma/Code/CPP-Workspace/ogl/playground/vertex-shader.glsl",
         "/home/oma/Code/CPP-Workspace/ogl/playground/fragment-shader.glsl"
     );
-    GLuint textureSampler  = glGetUniformLocation(mainShaderProgramID, "myTextureSampler");
-    GLuint mvpMatrixID = glGetUniformLocation(mainShaderProgramID, "MVP");
-    GLuint viewMatrixID = glGetUniformLocation(mainShaderProgramID, "V");
-    GLuint modelMatrixID = glGetUniformLocation(mainShaderProgramID, "M");
+    GLuint textureSampler = glGetUniformLocation(sceneShader->getId(), "myTextureSampler");
+    GLuint mvpMatrixID = glGetUniformLocation(sceneShader->getId(), "MVP");
+    GLuint viewMatrixID = glGetUniformLocation(sceneShader->getId(), "V");
+    GLuint modelMatrixID = glGetUniformLocation(sceneShader->getId(), "M");
 
-    GLuint lightId = glGetUniformLocation(mainShaderProgramID, "LightPosition_worldSpace");
-    GLuint lightColorId = glGetUniformLocation(mainShaderProgramID, "LightColor");
+    GLuint lightId = glGetUniformLocation(sceneShader->getId(), "LightPosition_worldSpace");
+    GLuint lightColorId = glGetUniformLocation(sceneShader->getId(), "LightColor");
     vec3 lightPosition(0, 5, 0);
-    double lightTimeCounter = 0;
 
     /* ================================================ */
     
-    GLuint textVAO;
-    glGenVertexArrays(1, &textVAO);
-    glBindVertexArray(textVAO);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0);
+    FontTextureManager* fontTextureManager = new FontTextureManager(
+        "/home/oma/Code/CPP-Workspace/ogl/playground/res/fonts/arial.ttf"
+    );
     
-    GLuint textVBO;
-    glGenBuffers(1, &textVBO);
-    glBindBuffer(GL_ARRAY_BUFFER, textVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 6 * 4, nullptr, GL_DYNAMIC_DRAW);
-
-    glDisableVertexAttribArray(0);
-    glBindVertexArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    
-    
-    GLuint textShaderProgramId = LoadShaders(
+    Shader* textShader = new Shader(
         "/home/oma/Code/CPP-Workspace/ogl/playground/text-vertex-shader.glsl",
         "/home/oma/Code/CPP-Workspace/ogl/playground/text-fragment-shader.glsl"
     );
-    glUseProgram(textShaderProgramId);
-    glm::mat4 textProjectionMat = glm::ortho(0.0f, static_cast<float> (width), 0.0f, static_cast<float> (height));
-    glUniformMatrix4fv(glGetUniformLocation(textShaderProgramId, "projection"), 1, GL_FALSE, &textProjectionMat[0][0]);//glm::value_ptr(textProjectionMat));
+    glUseProgram(textShader->getId());
+    glm::mat4 textProjectionMat = glm::ortho(0.0f, static_cast<float> (screen_width), 0.0f, static_cast<float> (screen_height));
+    glUniformMatrix4fv(glGetUniformLocation(textShader->getId(), "projection"), 1, GL_FALSE, &textProjectionMat[0][0]);
     
     /* ================================================ */
     
@@ -369,8 +230,11 @@ int main() {
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-
-
+    
+    
+    int fps = -1;
+    double lightTimeCounter = 0.0;
+    double fpsTimeCounter = 0.0;
     double lastTime = glfwGetTime();
     do {
         // Compute time difference between current and last frame
@@ -389,10 +253,10 @@ int main() {
         /* ==== DRAW ===================================== */
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        glUseProgram(mainShaderProgramID);
-        glUniformMatrix4fv(viewMatrixID, 1, GL_FALSE, &view[0][0]);
         
+        sceneShader->use();
+        glUniformMatrix4fv(viewMatrixID, 1, GL_FALSE, &view[0][0]);
+    
         lightTimeCounter += deltaTime;
         lightPosition.x = 3 * cos(lightTimeCounter * 2);
         lightPosition.z = 3 * sin(lightTimeCounter * 2);
@@ -414,18 +278,22 @@ int main() {
             glUniformMatrix4fv(mvpMatrixID, 1, GL_FALSE, &mvp[0][0]);
             m->draw();
         }
+    
         
         /* ============================================== */
         
-        renderText(
-            textVAO,
-            textVBO,
-            textShaderProgramId,
-            characters,
-            "Hello World!",
-            glm::vec2(10.0f, 10.0f),
-            1.0f,
-            glm::vec3(0.0f, 1.0f, 0.0f)
+        fpsTimeCounter += deltaTime;
+        if (fpsTimeCounter > 1) {
+            fps = static_cast<int>(1.0 / deltaTime);
+            fpsTimeCounter = 0.0;
+        }
+        
+        fontTextureManager->renderText(
+            textShader,
+            "FPS : " + std::to_string(fps),
+            glm::vec2(10.0f, static_cast<float> (screen_height) - 50.0f),
+            0.5f,
+            glm::vec3(0.0f, 1.0f, 1.0f)
         );
         
         /* ============================================== */
@@ -462,8 +330,11 @@ int main() {
     delete floorMesh;
     delete floorTexture;
     
-    glDeleteProgram(mainShaderProgramID);
-
+    delete sceneShader;
+    delete textShader;
+    
+    delete fontTextureManager;
+    
     // Close OpenGL window and terminate GLFW
     glfwTerminate();
 

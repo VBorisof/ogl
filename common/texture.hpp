@@ -1,5 +1,5 @@
-#ifndef TEXTURE_HPP
-#define TEXTURE_HPP
+#ifndef LIB_TEXTURE_HPP
+#define LIB_TEXTURE_HPP
 
 // Load a .BMP file using our custom loader
 GLuint loadBMP_custom(const char * imagepath);

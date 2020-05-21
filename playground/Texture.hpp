@@ -1,5 +1,5 @@
-#ifndef CTEXTURE_HPP
-#define CTEXTURE_HPP
+#ifndef TEXTURE_HPP
+#define TEXTURE_HPP
 
 #include <GL/glew.h>
 #include <common/texture.hpp>
@@ -31,4 +31,4 @@ public:
     }
 };
 
-#endif//CTEXTURE_HPP
+#endif//TEXTURE_HPP
